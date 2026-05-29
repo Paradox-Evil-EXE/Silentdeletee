@@ -1,5 +1,5 @@
 import { findByProps } from "@vendetta/metro";
-import { before } from "@vendetta/patcher";
+import { instead } from "@vendetta/patcher";
 import { storage } from "@vendetta/plugin";
 import { logger } from "@vendetta";
 import Settings from "./Settings";
@@ -43,25 +43,22 @@ export default {
         storage.deleteDelay ??= 200;
         storage.suppressNotifications ??= true;
 
-        // Patch the delete message action — intercept when user taps "Delete Message"
         const MessageActions = findByProps("deleteMessage", "sendMessage");
         if (!MessageActions) {
             logger.warn("[SilentDelete] MessageActions not found");
             return;
         }
 
-        const unpatch = before("deleteMessage", MessageActions, (args: any[]) => {
+        const unpatch = instead("deleteMessage", MessageActions, (args: any[]) => {
             const channelId: string = args[0];
             const messageId: string = args[1];
             if (!channelId || !messageId) return;
-
-            // Cancel the real delete, do our silent delete instead
+            // Don't call original — do silent delete instead
             silentDeleteMessage(channelId, messageId);
-            return false; // returning false cancels the original call
         });
 
         patches.push(unpatch);
-        logger.log("[SilentDelete] Loaded — deleteMessage patched.");
+        logger.log("[SilentDelete] Loaded.");
     },
 
     onUnload() {
