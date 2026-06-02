@@ -1,5 +1,5 @@
 import { findByProps } from "@vendetta/metro";
-import { after } from "@vendetta/patcher";
+import { instead } from "@vendetta/patcher";
 import { storage } from "@vendetta/plugin";
 import { logger } from "@vendetta";
 import Settings from "./Settings";
@@ -36,21 +36,12 @@ async function silentDeleteMessage(channelId: string, messageId: string) {
     }
 }
 
-function isOwnMessage(message: any): boolean {
-    try {
-        const UserStore = findByProps("getCurrentUser");
-        const currentUser = UserStore?.getCurrentUser?.();
-        return !!currentUser && message?.author?.id === currentUser.id;
-    } catch {
-        return false;
-    }
-}
-
 let patches: (() => void)[] = [];
 let isLoaded = false;
 
 export default {
     onLoad() {
+        // Prevent double-patching
         if (isLoaded) {
             logger.warn("[SilentDelete] Already loaded, skipping.");
             return;
@@ -61,75 +52,39 @@ export default {
         storage.deleteDelay ??= 200;
         storage.suppressNotifications ??= true;
 
-        // Discord mobile builds the message long-press sheet via useMessageMenu.
-        // Patching it with `after` lets us append our button to the returned
-        // items array — only for our own messages.
-        const MessageMenu = findByProps("useMessageMenu");
-
-        if (!MessageMenu) {
-            logger.warn("[SilentDelete] useMessageMenu module not found");
+        const MessageActions = findByProps("deleteMessage", "sendMessage");
+        if (!MessageActions) {
+            logger.warn("[SilentDelete] MessageActions not found");
             return;
         }
 
-        const unpatch = after("useMessageMenu", MessageMenu, (args: any[], returnValue: any) => {
-            // args[0] is the options object: { message, channel, ... }
-            const message = args[0]?.message;
-            const channel = args[0]?.channel;
+        const unpatch = instead("deleteMessage", MessageActions, (args: any[], orig: any) => {
+            const channelId: string = args[0];
+            const messageId: string = args[1];
+            const options: any = args[2];
 
-            // Only inject for your own messages
-            if (!message || !channel || !isOwnMessage(message)) return;
-
-            // returnValue is an array of menu item groups (arrays of items)
-            // Find the group containing the delete action so we can place
-            // Silent Delete right below it
-            if (!Array.isArray(returnValue)) return;
-
-            const silentDeleteItem = {
-                key: "silent-delete",
-                label: "Silent Delete",
-                // Use the same destructive red styling as the real Delete button
-                variant: "destructive",
-                icon: "TrashIcon",
-                action() {
-                    silentDeleteMessage(channel.id, message.id);
-                },
-            };
-
-            // returnValue is a flat array of items, or an array of groups.
-            // Handle both shapes:
-            if (Array.isArray(returnValue[0])) {
-                // Grouped shape: [[item, item], [item], ...]
-                for (let g = 0; g < returnValue.length; g++) {
-                    const group = returnValue[g];
-                    const deleteIdx = group.findIndex(
-                        (item: any) =>
-                            item?.key === "delete" ||
-                            item?.label?.toLowerCase?.().includes("delete")
-                    );
-                    if (deleteIdx !== -1) {
-                        group.splice(deleteIdx + 1, 0, silentDeleteItem);
-                        return;
-                    }
-                }
-                // Delete item not found — append to last group
-                returnValue[returnValue.length - 1]?.push(silentDeleteItem);
-            } else {
-                // Flat shape: [item, item, ...]
-                const deleteIdx = returnValue.findIndex(
-                    (item: any) =>
-                        item?.key === "delete" ||
-                        item?.label?.toLowerCase?.().includes("delete")
-                );
-                if (deleteIdx !== -1) {
-                    returnValue.splice(deleteIdx + 1, 0, silentDeleteItem);
-                } else {
-                    returnValue.push(silentDeleteItem);
-                }
+            // If it's an ephemeral dismiss, call original
+            if (options?.isMention || options?.isEphemeral) {
+                return orig(...args);
             }
+
+            // Only intercept our own messages
+            const UserStore = findByProps("getCurrentUser");
+            const currentUser = UserStore?.getCurrentUser();
+            const MessageStore = findByProps("getMessage", "getMessages");
+            const message = MessageStore?.getMessage(channelId, messageId);
+
+            if (!message || message.author?.id !== currentUser?.id) {
+                // Not our message — delete normally
+                return orig(...args);
+            }
+
+            // Our message — silent delete
+            silentDeleteMessage(channelId, messageId);
         });
 
         patches.push(unpatch);
-        logger.log("[SilentDelete] Loaded — useMessageMenu patched.");
+        logger.log("[SilentDelete] Loaded — deleteMessage patched.");
     },
 
     onUnload() {
