@@ -63,23 +63,15 @@ export default {
             const messageId: string = args[1];
             const options: any = args[2];
 
-            // If it's an ephemeral dismiss, call original
+            // Ephemeral dismissals don't have a real messageId to delete — pass through
             if (options?.isMention || options?.isEphemeral) {
                 return orig(...args);
             }
 
-            // Only intercept our own messages
-            const UserStore = findByProps("getCurrentUser");
-            const currentUser = UserStore?.getCurrentUser();
-            const MessageStore = findByProps("getMessage", "getMessages");
-            const message = MessageStore?.getMessage(channelId, messageId);
+            if (!channelId || !messageId) return orig(...args);
 
-            if (!message || message.author?.id !== currentUser?.id) {
-                // Not our message — delete normally
-                return orig(...args);
-            }
-
-            // Our message — silent delete
+            // Discord's UI only calls deleteMessage for the user's own messages,
+            // so anything reaching here is ours — silent delete it
             silentDeleteMessage(channelId, messageId);
         });
 
