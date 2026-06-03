@@ -97,19 +97,17 @@ export default {
                     const insertAt = deleteIndex >= 0 ? deleteIndex : buttons.length;
 
                     buttons.splice(insertAt, 0,
-                        <ActionSheetRow
-                            label="Silent Delete"
-                            icon={
-                                <ActionSheetRow.Icon
-                                    color="danger"
-                                    source={DeleteIcon}
-                                />
-                            }
-                            onPress={() => {
+                        React.createElement(ActionSheetRow, {
+                            label: "Silent Delete",
+                            icon: React.createElement(ActionSheetRow.Icon, {
+                                color: "danger",
+                                source: DeleteIcon,
+                            }),
+                            onPress: () => {
                                 ActionSheet.hideActionSheet();
                                 silentDeleteMessage(channelId, messageId);
-                            }}
-                        />
+                            },
+                        })
                     );
                 });
             });
