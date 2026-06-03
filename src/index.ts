@@ -109,13 +109,13 @@ export default {
                             React.createElement(ActionSheetRow, {
                                 label: "Silent Delete",
                                 destructive: true,
-                                icon: (
-                                    <RN.View style={{ tintColor: "#ed4245" }}>
-                                        <ActionSheetRow.Icon
-                                            source={DeleteIcon}
-                                            color="#ed4245"
-                                        />
-                                    </RN.View>
+                                icon: React.createElement(
+                                    RN.View,
+                                    { style: { tintColor: "#ed4245" } },
+                                    React.createElement(ActionSheetRow.Icon, {
+                                        source: DeleteIcon,
+                                        color: "#ed4245",
+                                    })
                                 ),
                                 onPress: () => {
                                     ActionSheet.hideActionSheet();
