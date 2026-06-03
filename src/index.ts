@@ -49,19 +49,35 @@ export default {
         storage.deleteDelay ??= 200;
         storage.suppressNotifications ??= true;
 
-        // Find the message context menu by looking for a module that has
-        // a "deleteMessage" or "DELETE_MESSAGE" action — the real long press sheet
-        const MessageContextMenu = findByProps("useMessageLongPressActionSheet")
-            ?? findByProps("MessageContextMenu")
-            ?? findByProps("deleteMessage", "pinMessage")
-            ?? findByProps("deleteMessage", "editMessage");
+        // Find the actual context menu UI component — must have a `default` that is
+        // a React function/component, and the module key must suggest it's an action sheet
+        const menuModule = find((m: any) => {
+            try {
+                if (
+                    m &&
+                    typeof m.default === "function" &&
+                    m.default.name &&
+                    (
+                        m.default.name.toLowerCase().includes("longpress") ||
+                        m.default.name.toLowerCase().includes("actionsheet") ||
+                        m.default.name.toLowerCase().includes("contextmenu") ||
+                        m.default.name.toLowerCase().includes("messagemenu") ||
+                        m.default.name.toLowerCase().includes("messageaction")
+                    )
+                ) {
+                    logger.log("[SilentDelete] Candidate: " + m.default.name);
+                    return true;
+                }
+            } catch {}
+            return false;
+        });
 
-        if (!MessageContextMenu) {
-            logger.warn("[SilentDelete] Could not find MessageContextMenu by props. Dumping deleteMessage modules:");
+        if (!menuModule) {
+            logger.warn("[SilentDelete] No menu module found. Dumping all default-exported React components with 'message' in name:");
             find((m: any) => {
                 try {
-                    if (m && typeof m === "object" && "deleteMessage" in m) {
-                        logger.log("[SilentDelete] >> keys: " + Object.keys(m).slice(0, 10).join(", "));
+                    if (m && typeof m.default === "function" && m.default.name?.toLowerCase().includes("message")) {
+                        logger.log("[SilentDelete] >> " + m.default.name);
                     }
                 } catch {}
                 return false;
@@ -69,30 +85,13 @@ export default {
             return;
         }
 
-        logger.log("[SilentDelete] Found MessageContextMenu keys: " + Object.keys(MessageContextMenu).join(", "));
+        logger.log("[SilentDelete] Using: " + menuModule.default.name);
 
-        // ModalActionButton is the correct button component from the keys dump
         const { ModalActionButton } = findByProps("ModalActionButton");
 
-        if (!ModalActionButton) {
-            logger.warn("[SilentDelete] ModalActionButton not found");
-            return;
-        }
-
-        // Patch whichever key on the module is a function (the render fn)
-        const patchKey = Object.keys(MessageContextMenu).find(
-            k => typeof MessageContextMenu[k] === "function"
-        );
-
-        if (!patchKey) {
-            logger.warn("[SilentDelete] No patchable function found on MessageContextMenu");
-            return;
-        }
-
-        logger.log("[SilentDelete] Patching key: " + patchKey);
-
-        const unpatch = after(patchKey, MessageContextMenu, (args: any[], res: any) => {
-            const message = args[0]?.message ?? args[1]?.message;
+        const unpatch = after("default", menuModule, (args: any[], res: any) => {
+            const props = args[0];
+            const message = props?.message ?? props?.targetMessage;
             if (!message) return res;
 
             const UserStore = findByProps("getCurrentUser");
@@ -102,19 +101,20 @@ export default {
             const channelId: string = message.channel_id;
             const messageId: string = message.id;
 
-            const silentDeleteButton = React.createElement(ModalActionButton, {
+            const btn = React.createElement(ModalActionButton, {
                 text: "Silent Delete",
-                iconSource: findByProps("ic_trash")?.ic_trash ?? findByProps("trash")?.trash,
                 destructive: true,
                 onPress: () => silentDeleteMessage(channelId, messageId),
             });
 
-            if (res?.props?.children) {
-                if (Array.isArray(res.props.children)) {
-                    res.props.children.push(silentDeleteButton);
-                } else {
-                    res.props.children = [res.props.children, silentDeleteButton];
+            try {
+                if (Array.isArray(res?.props?.children)) {
+                    res.props.children.push(btn);
+                } else if (res?.props?.children) {
+                    res.props.children = [res.props.children, btn];
                 }
+            } catch (e) {
+                logger.log("[SilentDelete] Failed to inject button: " + String(e));
             }
 
             return res;
