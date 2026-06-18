@@ -22,9 +22,10 @@ const DeleteIcon =
 async function silentDeleteMessage(channelId: string, messageId: string) {
     const RestAPI = findByProps("get", "post", "del", "patch");
     try {
-        const replacementText: string = storage.replacementText ?? "** **";
+        const replacementText: string = storage.replacementText ?? "this information has been redacted by the kgb";
         const deleteDelay: number = storage.deleteDelay ?? 200;
         const suppressNotifications: boolean = storage.suppressNotifications ?? true;
+        const deleteReplacement: boolean = storage.deleteReplacement ?? true;
 
         const response = await RestAPI.post({
             url: `/channels/${channelId}/messages`,
@@ -38,8 +39,10 @@ async function silentDeleteMessage(channelId: string, messageId: string) {
         });
 
         await sleep(deleteDelay);
-        await RestAPI.del({ url: `/channels/${channelId}/messages/${response.body.id}` });
-        await sleep(100);
+        if (deleteReplacement) {
+            await RestAPI.del({ url: `/channels/${channelId}/messages/${response.body.id}` });
+            await sleep(100);
+        }
         await RestAPI.del({ url: `/channels/${channelId}/messages/${messageId}` });
         logger.log("[SilentDelete] Success!");
         return true;
@@ -53,9 +56,10 @@ let unpatchOpenLazy: (() => void) | null = null;
 
 export default {
     onLoad() {
-        storage.replacementText ??= "** **";
+        storage.replacementText ??= "this information has been redacted by the kgb";
         storage.deleteDelay ??= 200;
         storage.suppressNotifications ??= true;
+        storage.deleteReplacement ??= true;
 
         unpatchOpenLazy = before("openLazy", ActionSheet, ([comp, args, msg]) => {
             if (args !== "MessageLongPressActionSheet" || !msg?.message) return;

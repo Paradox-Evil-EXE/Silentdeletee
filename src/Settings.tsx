@@ -11,10 +11,11 @@ export default function SilentDeleteSettings() {
     useProxy(storage);
 
     // Initialize defaults if not set
-    storage.replacementText ??= "** **";
+    storage.replacementText ??= "this information has been redacted by the kgb";
     storage.deleteDelay ??= 200;
     storage.suppressNotifications ??= true;
     storage.deleteOriginal ??= true;
+    storage.deleteReplacement ??= true;
     storage.purgeInterval ??= 500;
 
     return (
@@ -22,7 +23,7 @@ export default function SilentDeleteSettings() {
             <FormSection title="Behavior">
                 <FormInput
                     title="Replacement Text"
-                    placeholder="** **"
+                    placeholder="this information has been redacted by the kgb"
                     value={storage.replacementText}
                     onChangeText={(v: string) => (storage.replacementText = v)}
                 />
@@ -39,6 +40,13 @@ export default function SilentDeleteSettings() {
                     subLabel="If disabled, the original message will reappear on client restart."
                     value={!!storage.deleteOriginal}
                     onValueChange={(v: boolean) => (storage.deleteOriginal = v)}
+                />
+                <FormDivider />
+                <FormSwitchRow
+                    label="Delete Replacement Message"
+                    subLabel="If disabled, the replacement message sent via the nonce trick will remain visible."
+                    value={!!storage.deleteReplacement}
+                    onValueChange={(v: boolean) => (storage.deleteReplacement = v)}
                 />
             </FormSection>
 
