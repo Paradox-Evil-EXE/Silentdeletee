@@ -22,7 +22,7 @@ const DeleteIcon =
 async function silentDeleteMessage(channelId: string, messageId: string) {
     const RestAPI = findByProps("get", "post", "del", "patch");
     try {
-        const replacementText: string = storage.replacementText ?? "this information has been redacted by the kgb";
+        const replacementText: string = storage.replacementText ?? "This information has been redacted by the KGB";
         const deleteDelay: number = storage.deleteDelay ?? 200;
         const suppressNotifications: boolean = storage.suppressNotifications ?? true;
         const deleteReplacement: boolean = storage.deleteReplacement ?? true;
@@ -56,7 +56,7 @@ let unpatchOpenLazy: (() => void) | null = null;
 
 export default {
     onLoad() {
-        storage.replacementText ??= "this information has been redacted by the kgb";
+        storage.replacementText ??= "This information has been redacted by the KGB";
         storage.deleteDelay ??= 200;
         storage.suppressNotifications ??= true;
         storage.deleteReplacement ??= true;

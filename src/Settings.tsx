@@ -11,7 +11,7 @@ export default function SilentDeleteSettings() {
     useProxy(storage);
 
     // Initialize defaults if not set
-    storage.replacementText ??= "this information has been redacted by the kgb";
+    storage.replacementText ??= "This information has been redacted by the KGB";
     storage.deleteDelay ??= 200;
     storage.suppressNotifications ??= true;
     storage.deleteOriginal ??= true;
@@ -23,7 +23,7 @@ export default function SilentDeleteSettings() {
             <FormSection title="Behavior">
                 <FormInput
                     title="Replacement Text"
-                    placeholder="this information has been redacted by the kgb"
+                    placeholder="This information has been redacted by the KGB"
                     value={storage.replacementText}
                     onChangeText={(v: string) => (storage.replacementText = v)}
                 />
