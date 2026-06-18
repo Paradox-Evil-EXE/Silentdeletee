@@ -3,8 +3,8 @@
     "description": "Silently deletes a message to bypass vencord message loggers.",
     "authors": [
         {
-            "name": "snipermaster226",
-            "id": "798441657895878696"
+            "name": "Paradox Evil",
+            "id": "708704825201918012"
         }
     ],
     "main": "src/index.ts",
